@@ -1,12 +1,12 @@
-Project 2: Public-Key Cryptography
-==================================
+Public-Key Cryptography
+=======================
 
 About
 -----
 
 This project implements a public-key cryptography algorithm. A command-line interface is also provided for key generation, ECB encryption, and ECB decryption.
 
-**NOTE**: This program was done for learning purposes and should not be relied on for cryptographic security. Use a well-established, cryptographically secure algorithm instead.
+**NOTE**: This program was done for learning purposes. The size of the output is unnecessarily large, and it is most likely not cryptographically secure. Use a well-established, secure algorithm instead.
 
 Usage
 -----

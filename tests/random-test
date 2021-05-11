@@ -1,0 +1,65 @@
+#!/bin/bash
+set -e
+
+tmp="$(mktemp -d)"
+
+# program files for cipher
+pubkey="$tmp/pubkey.txt"
+prikey="$tmp/prikey.txt"
+plain="$tmp/plaintext.txt"
+cipher="$tmp/ciphertext.txt"
+decrypted="$tmp/decrypted.txt"
+log="$tmp/log.txt"
+
+echoerr() {
+    echo "$@" >&2
+}
+
+random_bytes() {
+    # $1: the number of random bytes to generate
+    head -c "$1" /dev/urandom
+}
+
+run() {
+    # run the program logging its stderr
+    echo "Running with options: $*" >>"$log"
+    cargo run --release -- "$@" 2>>"$log" >/dev/null
+}
+
+test_crypt() {
+    # test the program with the given number of bytes of random plaintext.
+    #
+    # $1: the number of bytes to encrypt/decrypt
+
+    local n="$1"
+
+    random_bytes "$n" >"$plain"
+    printf "" >"$log"
+
+    # encrypt, then decrypt
+    echoerr "Testing random $n-byte plaintext $plain"
+    run genkey --pub "$pubkey" --priv "$prikey"
+    run crypt -e --in "$plain" --out "$cipher" --key "$pubkey"
+    run crypt -d --in "$cipher" --out "$decrypted" --key "$prikey"
+
+    # check if the outputted decrypted file is the same as the input
+    if [[ $(cmp "$plain" "$decrypted" | wc -l) -ne 0 ]]; then
+        echoerr "Encryption failed; files are in $tmp"
+        exit 1
+    fi
+}
+
+trap 'rm -ri "$tmp"' EXIT
+cargo build --release
+
+# test edge cases with random inputs <= 1 block long
+for n in {0..8}; do
+    test_crypt "$n"
+done
+
+# test randomly-sized inputs
+for _ in {1..100}; do
+    test_crypt $RANDOM
+done
+
+echo "Randomized tests succeeded!"

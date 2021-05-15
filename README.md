@@ -39,12 +39,12 @@ Examples
 
 Generate key pair for encryption and decryption:
 
-    pubcrypt genkey --priv privkey.txt --pub pubkey.txt
+    pubcrypt genkey --priv priv.key --pub pub.key
 
 Encrypt the file `foo.txt` with the generated public key and write the result to `foo.enc`:
 
-    pubcrypt crypt -e --key pubkey.txt --in foo.txt --out foo.enc
+    pubcrypt crypt -e --key pub.key --in foo.txt --out foo.enc
 
 Decrypt the file `foo.enc` with the generated private key and write the result to `decrypted.txt`:
 
-    pubcrypt crypt -d --key privkey.txt --in foo.enc --out decrypted.txt
+    pubcrypt crypt -d --key priv.key --in foo.enc --out decrypted.txt

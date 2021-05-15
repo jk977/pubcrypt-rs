@@ -1,9 +1,10 @@
 mod crypt;
 
-use clap::{clap_app, AppSettings};
+use clap::{clap_app, AppSettings, ArgMatches};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{
     cmp,
+    fmt::Display,
     fs::{self, File},
     io::{self, BufRead, BufReader, BufWriter, Read, Write},
 };
@@ -18,10 +19,28 @@ struct CryptSettings {
 }
 
 /**
- * Generate a public-private key pair and write them to `pub_path` and
- * `priv_path`, respectively.
+ * Get the inner `Ok` value of the result. If the result is `Err(_)`, print an informational message
+ * prefixed with `msg` and exit the process.
+ *
+ * Returns the `Ok` value of `r`. Does not return if `r` is an error.
  */
-fn gen_keys_to(pub_path: &str, priv_path: &str) -> io::Result<()> {
+fn ok_or_die<T, E: Display>(r: Result<T, E>, msg: &str) -> T {
+    match r {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("{}: {}", msg, e);
+            std::process::exit(1);
+        },
+    }
+}
+
+/**
+ * Generate a public-private key pair and write them to the values `PUB_OUT` and `PRIV_OUT` from
+ * `matches`, respectively.
+ */
+fn gen_keys(matches: &ArgMatches) -> io::Result<()> {
+    let pub_path = matches.value_of("PUB_OUT").unwrap();
+    let priv_path = matches.value_of("PRIV_OUT").unwrap();
     let mut rng = StdRng::from_entropy();
     let KeyPair {
         public: pub_key,
@@ -123,13 +142,11 @@ fn decrypt_ecb(mut settings: CryptSettings) -> io::Result<()> {
         let buf = settings.reader.fill_buf()?;
 
         if buf.len() < NUM_BYTES * 2 {
-            let e = io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                format!(
-                    "Decrypted file must have a multiple of {} bytes",
-                    NUM_BYTES * 2
-                ),
+            let e_msg = format!(
+                "Decrypted file must have a multiple of {} bytes",
+                NUM_BYTES * 2
             );
+            let e = io::Error::new(io::ErrorKind::UnexpectedEof, e_msg);
             return Err(e);
         }
 
@@ -147,9 +164,10 @@ fn decrypt_ecb(mut settings: CryptSettings) -> io::Result<()> {
         if reader_is_eof(&mut settings.reader)? {
             // last ciphertext block, so it contains a pad count
             let pad_bytes = block_bytes[block_bytes.len() - 1] as usize;
-            return settings
-                .writer
-                .write_all(&block_bytes[..block_bytes.len() - pad_bytes]);
+            assert!(pad_bytes <= block_bytes.len());
+
+            let unpadded = &block_bytes[..block_bytes.len() - pad_bytes];
+            return settings.writer.write_all(unpadded);
         } else {
             settings.writer.write_all(&block_bytes)?;
         };
@@ -190,39 +208,51 @@ fn build_clap_app() -> clap::App<'static, 'static> {
     )
 }
 
-fn main() -> io::Result<()> {
+fn get_crypt_settings(matches: &ArgMatches) -> CryptSettings {
+    let in_file = {
+        let in_path = matches.value_of("INPATH").unwrap();
+        let err_msg = format!("Failed to open input file {}", in_path);
+        ok_or_die(File::open(in_path), &err_msg)
+    };
+    let out_file = {
+        let out_path = matches.value_of("OUTPATH").unwrap();
+        let err_msg = format!("Failed to open output file {}", out_path);
+        ok_or_die(File::create(out_path), &err_msg)
+    };
+    let key = {
+        let key_path = matches.value_of("KEYPATH").unwrap();
+        let mut key_file = ok_or_die(File::open(key_path), "Failed to open key file");
+        let mut buf = [0u8; Key::KEY_BYTES];
+        ok_or_die(
+            key_file.read_exact(&mut buf),
+            "Failed to read key from file",
+        );
+        Key::deserialize(&buf)
+    };
+
+    CryptSettings {
+        reader: BufReader::new(in_file),
+        writer: BufWriter::new(out_file),
+        key,
+    }
+}
+
+fn main() {
     let matches = build_clap_app().get_matches();
 
     if let Some(matches) = matches.subcommand_matches("genkey") {
-        let pub_out = matches.value_of("PUB_OUT").unwrap();
-        let priv_out = matches.value_of("PRIV_OUT").unwrap();
-        gen_keys_to(pub_out, priv_out)
+        // `genkey` subcommand; generate public/private key pair
+        ok_or_die(gen_keys(matches), "Failed to generate and write keys");
     } else if let Some(matches) = matches.subcommand_matches("crypt") {
-        // handle encryption/decryption
-        let crypt = if matches.is_present("ENCRYPT") {
-            encrypt_ecb
+        // `crypt` subcommand; handle encryption/decryption
+        assert!(matches.is_present("ENCRYPT") || matches.is_present("DECRYPT"));
+        let settings = get_crypt_settings(matches);
+
+        if matches.is_present("ENCRYPT") {
+            ok_or_die(encrypt_ecb(settings), "Encryption failed");
         } else {
-            assert!(matches.is_present("DECRYPT"));
-            decrypt_ecb
-        };
-
-        let in_path = matches.value_of("INPATH").unwrap();
-        let out_path = matches.value_of("OUTPATH").unwrap();
-        let key = {
-            let key_path = matches.value_of("KEYPATH").unwrap();
-            let mut key_file = File::open(key_path)?;
-            let mut buf = [0u8; Key::KEY_BYTES];
-            key_file.read_exact(&mut buf)?;
-            Key::deserialize(&buf)
-        };
-
-        let settings = CryptSettings {
-            reader: BufReader::new(File::open(in_path)?),
-            writer: BufWriter::new(File::create(out_path)?),
-            key,
-        };
-
-        crypt(settings)
+            ok_or_die(decrypt_ecb(settings), "Decryption failed");
+        }
     } else {
         unreachable!("Failed to cover all subcommands, or Clap is improperly configured");
     }

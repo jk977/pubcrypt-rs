@@ -6,7 +6,7 @@ About
 
 This project implements a public-key cryptography algorithm. A command-line interface is also provided for key generation, ECB encryption, and ECB decryption.
 
-**NOTE**: This program was done for learning purposes; it is most likely not cryptographically secure. Use a well-established, secure algorithm instead.
+**NOTE**: This program was done primarily for learning purposes; it is almost definitely not cryptographically secure. Use a well-established, secure algorithm instead.
 
 Usage
 -----

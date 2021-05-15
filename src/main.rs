@@ -1,5 +1,4 @@
 mod crypt;
-mod util;
 
 use clap::{clap_app, AppSettings};
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -9,8 +8,7 @@ use std::{
     io::{self, BufRead, BufReader, BufWriter, Write},
 };
 
-use crypt::{Block, Key, KeyPair, BLOCK_BYTES};
-use util::parse_words;
+use crypt::{Block, Key, KeyPair, Num, BLOCK_BYTES};
 
 #[derive(Debug)]
 struct CryptSettings {
@@ -54,8 +52,10 @@ fn encrypt_block_to_file<T: Rng>(
 ) -> io::Result<()> {
     let block = Block::from_be_bytes(buf);
     let (c1, c2) = crypt::encrypt_block(block, &settings.key, rng);
-    let encrypted_str = format!("{} {}\n", c1, c2);
-    settings.writer.write_all(encrypted_str.as_bytes())
+
+    settings.writer.write_all(&c1.to_be_bytes())?;
+    settings.writer.write_all(&c2.to_be_bytes())?;
+    Ok(())
 }
 
 /**
@@ -119,25 +119,42 @@ fn encrypt_ecb(mut settings: CryptSettings) -> io::Result<()> {
  * written to `settings.writer`.
  */
 fn decrypt_ecb(mut settings: CryptSettings) -> io::Result<()> {
-    let mut lines = settings.reader.lines().peekable();
+    loop {
+        const NUM_BYTES: usize = std::mem::size_of::<Num>();
+        let buf = settings.reader.fill_buf()?;
 
-    while let Some(line) = lines.next() {
-        let [c1, c2] = parse_words(&line?)?;
+        if buf.len() < NUM_BYTES * 2 {
+            let e = io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                format!(
+                    "Decrypted file must have a multiple of {} bytes",
+                    NUM_BYTES * 2
+                ),
+            );
+            return Err(e);
+        }
+
+        let mut c1_buf = [0_u8; NUM_BYTES];
+        let mut c2_buf = [0_u8; NUM_BYTES];
+        c1_buf.copy_from_slice(&buf[..NUM_BYTES]);
+        c2_buf.copy_from_slice(&buf[NUM_BYTES..NUM_BYTES * 2]);
+        settings.reader.consume(NUM_BYTES * 2);
+
+        let c1 = Num::from_be_bytes(c1_buf);
+        let c2 = Num::from_be_bytes(c2_buf);
         let decrypted = crypt::decrypt_block(c1, c2, &settings.key);
+        let block_bytes = Block::to_be_bytes(decrypted);
 
-        let buf = Block::to_be_bytes(decrypted);
-        let out_buf = if lines.peek().is_none() {
+        if reader_is_eof(&mut settings.reader)? {
             // last ciphertext block, so it contains a pad count
-            let pad_bytes = buf[buf.len() - 1] as usize;
-            &buf[..buf.len() - pad_bytes]
+            let pad_bytes = block_bytes[block_bytes.len() - 1] as usize;
+            return settings
+                .writer
+                .write_all(&block_bytes[..block_bytes.len() - pad_bytes]);
         } else {
-            &buf
+            settings.writer.write_all(&block_bytes)?;
         };
-
-        settings.writer.write_all(out_buf)?;
     }
-
-    Ok(())
 }
 
 /**

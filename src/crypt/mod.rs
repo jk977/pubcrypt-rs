@@ -1,18 +1,57 @@
+use std::{
+    fmt, io,
+    mem::{self, MaybeUninit},
+    str::{self, FromStr},
+};
+
+use rand::Rng;
+
+pub use math::Num;
+use math::{mod_exp, primes, BigNum};
+
 #[cfg(test)]
 mod tests;
 
-use rand::Rng;
-use std::{fmt, io, mem, str};
-
-use crate::util::parse_words;
-use math::{mod_exp, primes, BigNum};
-
-pub use math::Num;
 pub type Block = u32;
 
 pub const BLOCK_BYTES: usize = mem::size_of::<Block>();
 const PRIME_MIN: Num = Block::MAX as Num + 1;
 const PRIME_MAX: Num = Num::MAX;
+
+/**
+ * Parse `N` values of type `T` from `s`, delimited by whitespace, and return the
+ * resulting array of values.
+ */
+fn parse_words<T: FromStr, const N: usize>(s: &str) -> io::Result<[T; N]> {
+    macro_rules! make_data_err {
+        ($msg: literal) => {
+            io::Error::new(io::ErrorKind::InvalidData, $msg)
+        };
+    }
+
+    let mut vals = MaybeUninit::<[T; N]>::uninit();
+    let mut word_count = 0;
+
+    for word in s.split_whitespace().map(str::parse) {
+        if word_count == N {
+            return Err(make_data_err!("too many values encountered while parsing"));
+        }
+
+        let val = word.map_err(|_| make_data_err!("failed to parse data"))?;
+
+        unsafe {
+            (vals.as_mut_ptr() as *mut T).add(word_count).write(val);
+        }
+
+        word_count += 1;
+    }
+
+    if word_count < N {
+        Err(make_data_err!("not enough values to parse"))
+    } else {
+        unsafe { Ok(vals.assume_init()) }
+    }
+}
 
 #[derive(Debug)]
 pub struct Key {

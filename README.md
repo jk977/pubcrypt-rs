@@ -13,38 +13,38 @@ Usage
 
 The program usage is as follows:
 
-    pubcrypt <-d|-e> [-in <INPATH>] [-out <OUTPATH>] [-k <KEYPATH>]
-    pubcrypt -genkey
+    KEY GENERATION:
 
-    Flags:
-        -d               Encrypt INPATH and write result to OUTPATH
-        -e               Encrypt INPATH and write result to OUTPATH
-        -genkey          Generate public and private keys to pubkey.txt
-                         and prikey.txt, respectively.
-        -h, --help       Prints help information
+        pubcrypt genkey --priv <PRIV_OUTPATH> --pub <PUB_OUTPATH>
 
-    Options:
-            -in <INPATH>      The file to read the algorithm input from.
-                              Defaults to ptext.txt when encrypting and
-                              ctext.txt when decrypting.
-            -out <OUTPATH>    The file to write the algorithm output to.
-                              Defaults to ctext.txt when encrypting and
-                              ptext.txt when decrypting.
-            -k <KEYPATH>      The file to read the key from. Defaults to
-                              Defaults to pubkey.txt when encrypting and
-                              prikey.txt when decrypting.
+        Options:
+            --priv <PRIV_OUTPATH>    Writes private key to the given path
+            --pub <PUB_OUTPATH>      Writes public key to given path
+
+    ENCRYPTION AND DECRYPTION:
+
+        pubcrypt crypt (-d|-e) --in <INPATH> --out <OUTPATH> --key <KEYPATH>
+
+        Flags:
+            -d               Decrypts INPATH and writes the result to OUTPATH
+            -e               Encrypts INPATH and writes the result to OUTPATH
+
+        Options:
+            --in <INPATH>     Sets the file to read the algorithm input from
+            --out <OUTPATH>   Sets the file to write the algorithm output to
+            --key <KEYPATH>   Sets the file to read the key from
 
 Examples
 --------
 
 Generate key pair for encryption and decryption:
 
-    cargo run -- -genkey
+    pubcrypt genkey --priv privkey.txt --pub pubkey.txt
 
 Encrypt the file `foo.txt` with the generated public key and write the result to `foo.enc`:
 
-    cargo run -- -e -k pubkey.txt -in foo.txt -out foo.enc
+    pubcrypt crypt -e --key pubkey.txt --in foo.txt --out foo.enc
 
 Decrypt the file `foo.enc` with the generated private key and write the result to `decrypted.txt`:
 
-    cargo run -- -d -k prikey.txt -in foo.enc -out decrypted.txt
+    pubcrypt crypt -d --key privkey.txt --in foo.enc --out decrypted.txt

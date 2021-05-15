@@ -15,6 +15,7 @@ mod tests;
 pub type Block = u32;
 
 pub const BLOCK_BYTES: usize = mem::size_of::<Block>();
+pub const NUM_BYTES: usize = mem::size_of::<Num>();
 const PRIME_MIN: Num = Block::MAX as Num + 1;
 const PRIME_MAX: Num = Num::MAX;
 
@@ -72,6 +73,33 @@ impl str::FromStr for Key {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let [prime, root, value] = parse_words(s)?;
         Ok(Self { prime, root, value })
+    }
+}
+
+impl Key {
+    pub const KEY_BYTES: usize = NUM_BYTES * 3;
+
+    pub fn serialize(&self) -> [u8; Self::KEY_BYTES] {
+        let mut result = [0u8; Self::KEY_BYTES];
+        result[..NUM_BYTES].copy_from_slice(&self.prime.to_be_bytes());
+        result[NUM_BYTES..NUM_BYTES * 2].copy_from_slice(&self.root.to_be_bytes());
+        result[NUM_BYTES * 2..NUM_BYTES * 3].copy_from_slice(&self.value.to_be_bytes());
+        result
+    }
+
+    pub fn deserialize(bytes: &[u8; Self::KEY_BYTES]) -> Self {
+        let mut prime_buf = [0u8; NUM_BYTES];
+        let mut root_buf = [0u8; NUM_BYTES];
+        let mut value_buf = [0u8; NUM_BYTES];
+        prime_buf.copy_from_slice(&bytes[..NUM_BYTES]);
+        root_buf.copy_from_slice(&bytes[NUM_BYTES..NUM_BYTES * 2]);
+        value_buf.copy_from_slice(&bytes[NUM_BYTES * 2..NUM_BYTES * 3]);
+
+        Self {
+            prime: Num::from_be_bytes(prime_buf),
+            root: Num::from_be_bytes(root_buf),
+            value: Num::from_be_bytes(value_buf),
+        }
     }
 }
 

@@ -5,10 +5,10 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{
     cmp,
     fs::{self, File},
-    io::{self, BufRead, BufReader, BufWriter, Write},
+    io::{self, BufRead, BufReader, BufWriter, Read, Write},
 };
 
-use crypt::{Block, Key, KeyPair, Num, BLOCK_BYTES};
+use crypt::{Block, Key, KeyPair, Num, BLOCK_BYTES, NUM_BYTES};
 
 #[derive(Debug)]
 struct CryptSettings {
@@ -28,7 +28,7 @@ fn gen_keys_to(pub_path: &str, priv_path: &str) -> io::Result<()> {
         private: priv_key,
     } = KeyPair::generate(&mut rng);
 
-    let write_key = |path: &str, key: Key| fs::write(path, key.to_string());
+    let write_key = |path: &str, key: Key| fs::write(path, &key.serialize());
     write_key(pub_path, pub_key).and_then(|_| write_key(priv_path, priv_key))
 }
 
@@ -120,7 +120,6 @@ fn encrypt_ecb(mut settings: CryptSettings) -> io::Result<()> {
  */
 fn decrypt_ecb(mut settings: CryptSettings) -> io::Result<()> {
     loop {
-        const NUM_BYTES: usize = std::mem::size_of::<Num>();
         let buf = settings.reader.fill_buf()?;
 
         if buf.len() < NUM_BYTES * 2 {
@@ -209,11 +208,18 @@ fn main() -> io::Result<()> {
 
         let in_path = matches.value_of("INPATH").unwrap();
         let out_path = matches.value_of("OUTPATH").unwrap();
-        let key_path = matches.value_of("KEYPATH").unwrap();
+        let key = {
+            let key_path = matches.value_of("KEYPATH").unwrap();
+            let mut key_file = File::open(key_path)?;
+            let mut buf = [0u8; Key::KEY_BYTES];
+            key_file.read_exact(&mut buf)?;
+            Key::deserialize(&buf)
+        };
+
         let settings = CryptSettings {
             reader: BufReader::new(File::open(in_path)?),
             writer: BufWriter::new(File::create(out_path)?),
-            key: fs::read_to_string(key_path)?.parse()?,
+            key,
         };
 
         crypt(settings)

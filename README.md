@@ -19,7 +19,7 @@ The program usage is as follows:
 
         Options:
             --priv <PRIV_OUTPATH>    Writes private key to the given path
-            --pub <PUB_OUTPATH>      Writes public key to given path
+            --pub <PUB_OUTPATH>      Writes public key to the given path
 
     ENCRYPTION AND DECRYPTION:
 

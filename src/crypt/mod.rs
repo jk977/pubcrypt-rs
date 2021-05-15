@@ -1,10 +1,5 @@
-use std::{
-    fmt, io,
-    mem::{self, MaybeUninit},
-    str::{self, FromStr},
-};
-
 use rand::Rng;
+use std::mem;
 
 pub use math::Num;
 use math::{mod_exp, primes, BigNum};
@@ -19,41 +14,6 @@ pub const NUM_BYTES: usize = mem::size_of::<Num>();
 const PRIME_MIN: Num = Block::MAX as Num + 1;
 const PRIME_MAX: Num = Num::MAX;
 
-/**
- * Parse `N` values of type `T` from `s`, delimited by whitespace, and return the
- * resulting array of values.
- */
-fn parse_words<T: FromStr, const N: usize>(s: &str) -> io::Result<[T; N]> {
-    macro_rules! make_data_err {
-        ($msg: literal) => {
-            io::Error::new(io::ErrorKind::InvalidData, $msg)
-        };
-    }
-
-    let mut vals = MaybeUninit::<[T; N]>::uninit();
-    let mut word_count = 0;
-
-    for word in s.split_whitespace().map(str::parse) {
-        if word_count == N {
-            return Err(make_data_err!("too many values encountered while parsing"));
-        }
-
-        let val = word.map_err(|_| make_data_err!("failed to parse data"))?;
-
-        unsafe {
-            (vals.as_mut_ptr() as *mut T).add(word_count).write(val);
-        }
-
-        word_count += 1;
-    }
-
-    if word_count < N {
-        Err(make_data_err!("not enough values to parse"))
-    } else {
-        unsafe { Ok(vals.assume_init()) }
-    }
-}
-
 #[derive(Debug)]
 pub struct Key {
     prime: Num,
@@ -61,24 +21,12 @@ pub struct Key {
     value: Num,
 }
 
-impl fmt::Display for Key {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {} {}", self.prime, self.root, self.value)
-    }
-}
-
-impl str::FromStr for Key {
-    type Err = io::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let [prime, root, value] = parse_words(s)?;
-        Ok(Self { prime, root, value })
-    }
-}
-
 impl Key {
     pub const KEY_BYTES: usize = NUM_BYTES * 3;
 
+    /**
+     * Convert key to bytes that can be saved to the disk.
+     */
     pub fn serialize(&self) -> [u8; Self::KEY_BYTES] {
         let mut result = [0u8; Self::KEY_BYTES];
         result[..NUM_BYTES].copy_from_slice(&self.prime.to_be_bytes());
@@ -87,6 +35,9 @@ impl Key {
         result
     }
 
+    /**
+     * Read key from serialized bytes.
+     */
     pub fn deserialize(bytes: &[u8; Self::KEY_BYTES]) -> Self {
         let mut prime_buf = [0u8; NUM_BYTES];
         let mut root_buf = [0u8; NUM_BYTES];

@@ -23,7 +23,7 @@ fn test_pick_random() {
     let mut rng = StdRng::from_entropy();
 
     for _ in 0..ITERATIONS {
-        let (prime, _) = pick_random_with_root(MIN, MAX, &mut rng);
+        let (prime, _) = pick_random_with_root(MIN, MAX, &mut rng).unwrap();
         assert!(prime >= MIN);
         assert!(prime <= MAX);
         assert!(is_prime(prime));

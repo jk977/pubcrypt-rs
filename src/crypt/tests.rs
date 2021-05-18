@@ -9,7 +9,7 @@ fn random_test_crypt_block() {
     let mut rng = StdRng::from_entropy();
 
     for _ in 0..KEYS {
-        let keys = KeyPair::generate(&mut rng);
+        let keys = KeyPair::generate(&mut rng).unwrap();
 
         for _ in 0..BLOCKS_PER_KEY {
             let block = rng.gen_range(0..=Block::MAX);

@@ -66,12 +66,12 @@ impl KeyPair {
      * return value is wrapped in a structure instead of just using a tuple to
      * avoid confusion about which is the public and which is the private key.
      */
-    pub fn generate<T: Rng>(rng: &mut T) -> Self {
-        let (prime, root) = primes::pick_random_with_root(PRIME_MIN, PRIME_MAX, rng);
+    pub fn generate<T: Rng>(rng: &mut T) -> Result<Self, primes::PrimeError> {
+        let (prime, root) = primes::pick_random_with_root(PRIME_MIN, PRIME_MAX, rng)?;
         let priv_exp = rng.gen_range(1..prime - 1);
         let pub_exp = mod_exp(root, priv_exp, prime);
 
-        Self {
+        Ok(Self {
             public: Key {
                 prime,
                 root,
@@ -82,7 +82,7 @@ impl KeyPair {
                 root,
                 value: priv_exp,
             },
-        }
+        })
     }
 }
 

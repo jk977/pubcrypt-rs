@@ -39,16 +39,22 @@ fn ok_or_die<T, E: Display>(r: Result<T, E>, msg: &str) -> T {
  * `matches`, respectively.
  */
 fn gen_keys(matches: &ArgMatches) -> io::Result<()> {
+    use math::primes::PrimeError;
+
     let pub_path = matches.value_of("PUB_OUT").unwrap();
     let priv_path = matches.value_of("PRIV_OUT").unwrap();
     let mut rng = StdRng::from_entropy();
-    let KeyPair {
-        public: pub_key,
-        private: priv_key,
-    } = KeyPair::generate(&mut rng);
+    let keys = match KeyPair::generate(&mut rng) {
+        Err(PrimeError::InvalidRange) => unimplemented!(),
+        Err(PrimeError::PrimeNotFound) => unimplemented!(),
+        Err(PrimeError::RngError) => unimplemented!(),
+        Ok(k) => k,
+    };
 
     let write_key = |path: &str, key: Key| fs::write(path, &key.serialize());
-    write_key(pub_path, pub_key).and_then(|_| write_key(priv_path, priv_key))
+    write_key(pub_path, keys.public)?;
+    write_key(priv_path, keys.private)?;
+    Ok(())
 }
 
 /**

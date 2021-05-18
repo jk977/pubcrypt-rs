@@ -26,6 +26,6 @@ fn test_pick_random() {
         let (prime, _) = pick_random_with_root(MIN, MAX, &mut rng).unwrap();
         assert!(prime >= MIN);
         assert!(prime <= MAX);
-        assert!(is_prime(prime));
+        assert!(is_prime(prime, &mut rng));
     }
 }

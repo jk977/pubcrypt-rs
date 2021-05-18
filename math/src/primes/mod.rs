@@ -2,7 +2,7 @@
 mod tests;
 
 use crate::{mod_exp, Num};
-use rand::prelude::{IteratorRandom, Rng};
+use rand::prelude::Rng;
 use std::iter;
 
 #[derive(Debug, Copy, Clone)]
@@ -112,44 +112,6 @@ fn range_contains_known_prime(min: Num, max: Num) -> bool {
 }
 
 /**
- * Pick a random prime in the inclusive range `[min, max]` using `rng`.
- */
-pub fn pick_random_prime<T: Rng>(min: Num, max: Num, rng: &mut T) -> Result<Num, PrimeError> {
-    if min > max || max < 3 {
-        return Err(PrimeError::InvalidRange);
-    } else if min == max {
-        return if is_prime(min, rng) {
-            Ok(min)
-        } else {
-            Err(PrimeError::PrimeNotFound)
-        };
-    }
-
-    assert!(min < max);
-    let mut candidates = iter::repeat_with(|| (min..=max).choose(rng).unwrap());
-    let mut primality_rng = rand::thread_rng();
-    let check_prime = |n: &Num| is_prime(*n, &mut primality_rng);
-
-    let result = if range_contains_known_prime(min, max) {
-        candidates.find(check_prime)
-    } else {
-        // unknown whether or not the range contains a prime, so use a probabilistic approach
-        let prime_attempts = 10_usize.saturating_mul((min - max + 1) as usize);
-        candidates.take(prime_attempts).find(check_prime)
-    };
-
-    result.ok_or(PrimeError::PrimeNotFound)
-}
-
-/**
- * Calculate a random primitive root of `prime`.
- */
-pub fn get_primitive_root<T: Rng>(prime: Num, rng: &mut T) -> Num {
-    assert!(is_prime(prime, rng));
-    unimplemented!()
-}
-
-/**
  * Pick a random prime in the inclusive range `[min, max]` using `rng`, and a random primitive root
  * of the prime.
  *
@@ -160,7 +122,40 @@ pub fn pick_random_with_root<T: Rng>(
     max: Num,
     rng: &mut T,
 ) -> Result<(Num, Num), PrimeError> {
-    let prime = pick_random_prime(min, max, rng)?;
-    let root = get_primitive_root(prime, rng);
-    Ok((prime, root))
+    if min > max || max < 3 {
+        return Err(PrimeError::InvalidRange);
+    }
+
+    let gen_candidate = || (rng.gen_range(min..=max) - 1) / 2;
+    let mut primality_rng = rand::thread_rng();
+    let get_prime = |n| {
+        // FilterMap closure to return only primes with a primitive root of 2
+        let prime = 2 * n + 1;
+        if n % 2 == 1
+            && n % 12 == 5
+            && is_prime(n, &mut primality_rng)
+            && is_prime(prime, &mut primality_rng)
+        {
+            Some(prime)
+        } else {
+            None
+        }
+    };
+
+    let candidates = iter::repeat_with(gen_candidate);
+
+    let result = if range_contains_known_prime(min, max) {
+        candidates.filter_map(get_prime).next()
+    } else {
+        // unknown whether or not the range contains a prime, so use a probabilistic approach
+        let prime_attempts = 5_usize.saturating_mul((min - max + 1) as usize);
+        candidates.take(prime_attempts).filter_map(get_prime).next()
+    };
+
+    if let Some(prime) = result {
+        const ROOT: Num = 2;
+        Ok((prime, ROOT))
+    } else {
+        Err(PrimeError::PrimeNotFound)
+    }
 }

@@ -2,14 +2,13 @@
 mod tests;
 
 use crate::{mod_exp, Num};
-use rand::prelude::{Rng, IteratorRandom};
+use rand::prelude::{IteratorRandom, Rng};
 use std::iter;
 
 #[derive(Debug, Copy, Clone)]
 pub enum PrimeError {
     InvalidRange,
     PrimeNotFound,
-    RngError,
 }
 
 /**
@@ -48,27 +47,18 @@ pub fn is_witness(n: Num, val: Num) -> bool {
  *
  * Returns true if a witness for the compositeness of `n` was found, otherwise false.
  */
-pub fn check_random_witnesses(n: Num, witness_count: usize) -> bool {
+fn check_random_witnesses<T: Rng>(n: Num, witness_count: usize, rng: &mut T) -> bool {
     assert!(n >= 3);
     assert_eq!(n % 2, 1);
 
-    let mut rng = rand::thread_rng();
     iter::repeat_with(|| rng.gen_range(2..n - 1))
         .take(witness_count)
         .any(|val| is_witness(n, val))
 }
 
-fn is_prime(n: Num) -> bool {
+fn is_prime<T: Rng>(n: Num, rng: &mut T) -> bool {
     const WITNESS_COUNT: usize = 25;
-    !check_random_witnesses(n, WITNESS_COUNT)
-}
-
-/**
- * Calculate a random primitive root of `prime`.
- */
-pub fn get_primitive_root<T: Rng>(prime: Num, rng: &mut T) -> Num {
-    assert!(is_prime(prime));
-    unimplemented!()
+    !check_random_witnesses(n, WITNESS_COUNT, rng)
 }
 
 /**
@@ -128,34 +118,35 @@ pub fn pick_random_prime<T: Rng>(min: Num, max: Num, rng: &mut T) -> Result<Num,
     if min > max || max < 3 {
         return Err(PrimeError::InvalidRange);
     } else if min == max {
-        return if is_prime(min) {
+        return if is_prime(min, rng) {
             Ok(min)
         } else {
             Err(PrimeError::PrimeNotFound)
-        }
+        };
     }
 
     assert!(min < max);
-    let gen_candidate = || (min..=max).choose(rng).unwrap();
+    let mut primality_rng = rand::thread_rng();
+    let mut candidates = iter::repeat_with(|| (min..=max).choose(rng).unwrap());
+    let check_prime = |n: &Num| is_prime(*n, &mut primality_rng);
 
-    if range_contains_known_prime(min, max) {
-        return iter::repeat_with(gen_candidate)
-            .find(|n| is_prime(*n))
-            .ok_or(PrimeError::PrimeNotFound);
+    let result = if range_contains_known_prime(min, max) {
+        candidates.find(check_prime)
     } else {
-        // use a probabilistic approach to determine if a prime is present in the range.
-        // `prime_attempts` is an arbitrary upper bound on the number of attempts allowed to choose
-        // a random number in the range and check if it's prime.
+        // unknown whether or not the range contains a prime, so use a probabilistic approach
         let prime_attempts = 10_usize.saturating_mul((min - max + 1) as usize);
+        candidates.take(prime_attempts).find(check_prime)
+    };
 
-        for n in iter::repeat_with(gen_candidate).take(prime_attempts) {
-            if is_prime(n) {
-                return Ok(n);
-            }
-        }
-    }
+    result.ok_or(PrimeError::PrimeNotFound)
+}
 
-    Err(PrimeError::PrimeNotFound)
+/**
+ * Calculate a random primitive root of `prime`.
+ */
+pub fn get_primitive_root<T: Rng>(prime: Num, rng: &mut T) -> Num {
+    assert!(is_prime(prime, rng));
+    unimplemented!()
 }
 
 /**
@@ -167,7 +158,7 @@ pub fn pick_random_prime<T: Rng>(min: Num, max: Num, rng: &mut T) -> Result<Num,
 pub fn pick_random_with_root<T: Rng>(
     min: Num,
     max: Num,
-    rng: &mut T
+    rng: &mut T,
 ) -> Result<(Num, Num), PrimeError> {
     let prime = pick_random_prime(min, max, rng)?;
     let root = get_primitive_root(prime, rng);

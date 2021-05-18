@@ -30,7 +30,7 @@ fn ok_or_die<T, E: Display>(r: Result<T, E>, msg: &str) -> T {
         Err(e) => {
             eprintln!("{}: {}", msg, e);
             std::process::exit(1);
-        },
+        }
     }
 }
 

@@ -126,8 +126,8 @@ pub fn pick_random_prime<T: Rng>(min: Num, max: Num, rng: &mut T) -> Result<Num,
     }
 
     assert!(min < max);
-    let mut primality_rng = rand::thread_rng();
     let mut candidates = iter::repeat_with(|| (min..=max).choose(rng).unwrap());
+    let mut primality_rng = rand::thread_rng();
     let check_prime = |n: &Num| is_prime(*n, &mut primality_rng);
 
     let result = if range_contains_known_prime(min, max) {

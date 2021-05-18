@@ -47,7 +47,6 @@ fn gen_keys(matches: &ArgMatches) -> io::Result<()> {
     let keys = match KeyPair::generate(&mut rng) {
         Err(PrimeError::InvalidRange) => unimplemented!(),
         Err(PrimeError::PrimeNotFound) => unimplemented!(),
-        Err(PrimeError::RngError) => unimplemented!(),
         Ok(k) => k,
     };
 

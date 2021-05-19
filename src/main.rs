@@ -18,6 +18,13 @@ struct CryptSettings {
     key: Key,
 }
 
+macro_rules! die {
+    ($($tts:tt)+) => {{
+        eprintln!($($tts)+);
+        std::process::exit(1);
+    }}
+}
+
 /**
  * Get the inner `Ok` value of the result. If the result is `Err(_)`, print an informational message
  * prefixed with `msg` and exit the process.
@@ -27,10 +34,7 @@ struct CryptSettings {
 fn ok_or_die<T, E: Display>(r: Result<T, E>, msg: &str) -> T {
     match r {
         Ok(val) => val,
-        Err(e) => {
-            eprintln!("{}: {}", msg, e);
-            std::process::exit(1);
-        }
+        Err(e) => die!("{}: {}", msg, e),
     }
 }
 
@@ -45,8 +49,8 @@ fn gen_keys(matches: &ArgMatches) -> io::Result<()> {
     let priv_path = matches.value_of("PRIV_OUT").unwrap();
     let mut rng = StdRng::from_entropy();
     let keys = match KeyPair::generate(&mut rng) {
-        Err(PrimeError::InvalidRange) => unimplemented!(),
-        Err(PrimeError::PrimeNotFound) => unimplemented!(),
+        Err(PrimeError::InvalidRange) => die!("Failed to generate key; invalid prime range"),
+        Err(PrimeError::PrimeNotFound) => die!("Failed to generate key; no primes found"),
         Ok(k) => k,
     };
 

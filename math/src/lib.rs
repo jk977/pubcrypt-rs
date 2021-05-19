@@ -15,7 +15,7 @@ const BITS_PER_NUM: usize = std::mem::size_of::<Num>() * BITS_PER_BYTE;
  * (for the most part) briefly listed within each branch.
  */
 
-fn get_optimization(base: Num, exponent: Num, modulus: Num) -> Option<Num> {
+fn get_mod_exp_optimization(base: Num, exponent: Num, modulus: Num) -> Option<Num> {
     if exponent == 0 {
         // x^0 == 1
         Some(1 % modulus)
@@ -61,7 +61,7 @@ pub fn mod_exp(mut base: Num, exponent: Num, modulus: Num) -> Num {
 
     base %= modulus;
 
-    if let Some(val) = get_optimization(base, exponent, modulus) {
+    if let Some(val) = get_mod_exp_optimization(base, exponent, modulus) {
         return val;
     }
 

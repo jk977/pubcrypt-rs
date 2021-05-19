@@ -99,7 +99,6 @@ fn range_contains_known_prime(min: Num, max: Num) -> bool {
     }
 
     let fmin = min as f64;
-
     let epsilon = if min >= DUSART_2016_MIN {
         fmin.ln().powi(-3)
     } else if min >= DUSART_1998_MIN {

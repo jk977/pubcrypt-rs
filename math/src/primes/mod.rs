@@ -130,8 +130,8 @@ pub fn pick_random_with_root<T: Rng>(
         return Err(PrimeError::InvalidRange);
     }
 
-    let gen_candidate = || (rng.gen_range(min..=max) - 1) / 2;
     let mut primality_rng = rand::thread_rng();
+    let gen_candidate = || (rng.gen_range(min..=max) - 1) / 2;
     let get_prime = |n| {
         // FilterMap closure to return only primes with a primitive root of 2
         let prime = 2 * n + 1;

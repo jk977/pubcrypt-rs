@@ -78,8 +78,6 @@ fn test_mod_exp() {
         check_wildcard([Some(*val), None, Some(*val)], 0);
     }
 
-    // misc potential edge cases
-
     // manual tests
     check(1, 1, 1, 0);
     check(16, 4, 13, 3);

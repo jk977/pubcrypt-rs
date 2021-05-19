@@ -4,12 +4,11 @@ pub mod primes;
 #[cfg(test)]
 mod tests;
 
-use std::mem;
-
 pub type Num = u64;
 pub type BigNum = u128;
 
 const BITS_PER_BYTE: usize = 8;
+const BITS_PER_NUM: usize = std::mem::size_of::<Num>() * BITS_PER_BYTE;
 
 /**
  * Shortcuts for modular exponentiation. The mathematical justification(s) are
@@ -58,7 +57,7 @@ fn get_optimization(base: Num, exponent: Num, modulus: Num) -> Option<Num> {
  */
 pub fn mod_exp(mut base: Num, exponent: Num, modulus: Num) -> Num {
     assert!(modulus > 0);
-    assert!(base.saturating_add(exponent) != 0);
+    assert_ne!(base.saturating_add(exponent), 0);
 
     base %= modulus;
 
@@ -66,13 +65,12 @@ pub fn mod_exp(mut base: Num, exponent: Num, modulus: Num) -> Num {
         return val;
     }
 
-    let num_bits = mem::size_of::<Num>() * BITS_PER_BYTE;
     let mut result: BigNum = 1;
-    let mut mask: Num = (1 as Num) << (num_bits - 1);
+    let mut mask: Num = (1 as Num) << (BITS_PER_NUM - 1);
 
     // iterate through each bit in the exponent, performing the square/multiply ops
     // as specified in the algorithm covered in class
-    for _ in 0..num_bits {
+    for _ in 0..BITS_PER_NUM {
         result = result.pow(2) % modulus as BigNum;
 
         if exponent & mask != 0 {

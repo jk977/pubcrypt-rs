@@ -15,8 +15,10 @@ pub enum PrimeError {
  * Returns true if `val` is a witness for the compositeness of `n`, otherwise false.
  */
 pub fn is_witness(n: Num, val: Num) -> bool {
-    assert!(n >= 3);
-    assert_eq!(n % 2, 1);
+    if n < 3 || n % 2 == 0 {
+        // `n` isn't prime
+        return false;
+    }
 
     let mut k = 0;
     let mut q = n - 1;
@@ -48,8 +50,10 @@ pub fn is_witness(n: Num, val: Num) -> bool {
  * Returns true if a witness for the compositeness of `n` was found, otherwise false.
  */
 fn check_random_witnesses<T: Rng>(n: Num, witness_count: usize, rng: &mut T) -> bool {
-    assert!(n >= 3);
-    assert_eq!(n % 2, 1);
+    if n < 3 || n % 2 == 0 {
+        // `n` isn't prime
+        return false;
+    }
 
     iter::repeat_with(|| rng.gen_range(2..n - 1))
         .take(witness_count)
@@ -143,7 +147,6 @@ pub fn pick_random_with_root<T: Rng>(
     };
 
     let candidates = iter::repeat_with(gen_candidate);
-
     let result = if range_contains_known_prime(min, max) {
         candidates.filter_map(get_prime).next()
     } else {
